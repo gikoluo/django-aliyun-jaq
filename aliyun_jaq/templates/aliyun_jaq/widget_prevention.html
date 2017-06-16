@@ -1,0 +1,23 @@
+
+
+<input type='hidden' id='jaq_prevention_key' name='jaq_prevention_key_field'/>
+<input type='hidden' id='jaq_prevention_scene_field' name='jaq_prevention_scene_field'/>
+<input type='hidden' id='jaq_prevention_token_field' name='jaq_prevention_token_field'/>
+
+<script data-app="{{ app_data }}"
+      src="//g.alicdn.com/sd/pointman/js/pt.js"></script>
+<script>
+  pointman.use('do', function () {
+    var afs = pointman.getConfig();
+    var afs_appkey = afs.appkey;
+    var afs_scene = afs.scene;
+    var afs_token = afs.token;
+    console.log('afs_appkey: ' + afs_appkey);
+    console.log('afs_scene: ' + afs_scene);
+    console.log('afs_token: ' + afs_token);
+
+    document.getElementById('jaq_prevention_scene_field').value = afs_scene;
+    document.getElementById('jaq_prevention_token_field').value = afs_token;
+  });
+</script>
+

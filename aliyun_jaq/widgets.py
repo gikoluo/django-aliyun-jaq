@@ -1,13 +1,9 @@
-import json
-
 import django, base64, json
 from django import forms
 from django.conf import settings
 from django.template.loader import render_to_string
 from django.utils.safestring import mark_safe
 from django.utils.translation import get_language
-from django.forms.widgets import Media as BaseMedia
-from django.utils.html import format_html, html_safe
 
 from .client import WIDGET_TEMPLATE
 
@@ -123,101 +119,22 @@ class JaqPrevention(forms.widgets.Widget):
         })
         return context
 
-    # def _get_media(self):
-    #     """
-    #     Media for a multiwidget is the combination of all media of the
-    #     subwidgets.
-    #     """
-    #     app_key = self.app_key
-    #     print ("meddddd")
-
-    #     @html_safe
-    #     class JaqPreventionMedia(BaseMedia):
-    #         js = ('//g.alicdn.com/sd/pointman/js/pt.js',)
-
-    #         def __str__(self):
-    #             return self.render()
-
-    #         def render_js(self):
-    #             print("render_js")
-    #             return [
-    #                 format_html(
-    #                     '<script data-app="{}" type="text/javascript" src="{}"></script>',
-    #                     base64.b64encode( json.dumps(self.get_data_app() ) ), 
-    #                     self.absolute_path(path)
-    #                 ) for path in self._js
-    #             ]
-
-    #         def get_data_app(self):
-    #             return {
-    #               "common": {
-    #                 "appkey": app_key,
-    #                 "useCustomToken": false,
-    #                 "scene": self.scene,
-    #                 "foreign": 0
-    #               },
-    #               "uab": {
-    #                 "ExTarget": [
-    #                   "pwdid"
-    #                 ],
-    #                 "useCustomToken": false,
-    #                 "FormId": "my_form",
-    #                 "LogVal": "ua_log",
-    #                 "SendInterval": 20,
-    #                 "SendMethod": 3,
-    #                 "MaxMCLog": 150,
-    #                 "MaxKSLog": 150,
-    #                 "MaxMPLog": 150,
-    #                 "MaxGPLog": 5,
-    #                 "MaxTCLog": 150,
-    #                 "GPInterval": 50,
-    #                 "MPInterval": 50,
-    #                 "MaxFocusLog": 150,
-    #                 "isSendError": 1,
-    #                 "ImgUrl": "//cfd.aliyun.com/collector/analyze.jsonp",
-    #                 "GetAttrs": [
-    #                   "href",
-    #                   "src"
-    #                 ],
-    #                 "Flag": 1965567
-    #               },
-    #               "umid": {
-    #                 "timeout": 3000,
-    #                 "timestamp": "",
-    #                 "token": "",
-    #                 "serviceUrl": "https://ynuf.alipay.com/service/um.json",
-    #                 "appName": "",
-    #                 "containers": {
-    #                   "flash": "container",
-    #                   "dcp": "container"
-    #                 }
-    #               }
-    #             }
-
-    #         #def render(self):
-    #         #    return mark_safe('\n'.join(chain.from_iterable(getattr(self, 'render_' + name)() for name in MEDIA_TYPES)))
-
-            
-
-    #     media = JaqPreventionMedia()
-    #     return media
-    # media = property(_get_media)
-
-
-    
-
     
 # <input type='hidden' id='csessionid' name='csessionid'/>
 # <input type='hidden' id='sig' name='sig'/>
 # <input type='hidden' id='token' name='token'/>
 # <input type='hidden' id='scene' name='scene'/>
 class JaqCaptcha(forms.widgets.Widget):
+    input_type = 'hidden'
+    
     if getattr(settings, 'NOCAPTCHA', False):
+        jaq_captcha_key_name = 'g-jaq-captcha-key'
         jaq_captcha_session_name = 'g-jaq-captcha-session'
         jaq_captcha_sig_name = 'g-jaq-captcha-sig'
         jaq_captcha_token_name = 'g-jaq-captcha-token'
         jaq_captcha_scene_name = 'g-jaq-captcha-scene'
     else:
+        jaq_captcha_key_name = 'jaq_captcha_key_field'
         jaq_captcha_session_name = 'jaq_captcha_session_field'
         jaq_captcha_sig_name = 'jaq_captcha_sig_field'
         jaq_captcha_token_name = 'jaq_captcha_token_field'
@@ -233,9 +150,10 @@ class JaqCaptcha(forms.widgets.Widget):
 
     def value_from_datadict(self, data, files, name):
         return [
+            data.get(self.jaq_captcha_key_name, None),
             data.get(self.jaq_captcha_session_name, None),
             data.get(self.jaq_captcha_sig_name, None),
-            data.get(self.jaq_captcha_token_name, None)
+            data.get(self.jaq_captcha_token_name, None),
             data.get(self.jaq_captcha_scene_name, None)
         ]
 
@@ -264,7 +182,6 @@ class JaqCaptcha(forms.widgets.Widget):
 
         context.update({
             'app_key': self.app_key,
-            #'app_data': base64.b64encode( json.dumps(self.get_data_app() ).encode('UTF-8') ), 
             'scene': self.scene,
             'lang': lang,
             'options': mark_safe(json.dumps(self.attrs, indent=2)),

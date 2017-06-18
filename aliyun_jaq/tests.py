@@ -6,7 +6,7 @@ from django.forms import Form
 
 
 class TestForm(Form):
-    captcha = fields.JaqField(attrs={'theme': 'white'})
+    captcha = fields.JaqCaptchaField(attrs={'theme': 'white'})
 
 
 class TestCase(unittest.TestCase):

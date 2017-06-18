@@ -2,24 +2,20 @@ import json
 
 from django.conf import settings
 
-from ._compat import (
-    build_opener, ProxyHandler, PY2, Request, urlencode, urlopen, want_bytes
-)
-
 from aliyunsdkcore.client import AcsClient
 from aliyunsdkjaq.request.v20161123 import (
-    OtherPreventionRequest, 
-    LoginPreventionRequest
+    OtherPreventionRequest,
+    LoginPreventionRequest,
+    AfsCheckRequest
 )
 
-from aliyunsdkcore.profile import region_provider
+from ._compat import (
+    build_opener, ProxyHandler, urlopen
+)
 
 DEFAULT_JAQ_REGION = 'cn-hangzhou'
 DEFAULT_JAQ_SERVER = "jaq.aliyuncs.com"  # made ssl agnostic
 
-#DEFAULT_API_SSL_SERVER = "//www.google.com/recaptcha/api"  # made ssl agnostic
-
-#DEFAULT_VERIFY_SERVER = "www.google.com"
 
 if getattr(settings, "NOCAPTCHA", False):
     DEFAULT_WIDGET_TEMPLATE = 'aliyun_jaq/widget_nocaptcha.html'
@@ -73,8 +69,59 @@ def request(*args, **kwargs):
         return urlopen(*args, **kwargs)
 
 
+def captcha(platform, 
+            sessionid, 
+            sig, 
+            token, 
+            scene,
+            access_key,
+            access_secret,
+            remoteip,
+            data,
+            use_ssl=False):
+    
+    clt = AcsClient(access_key, access_secret, API_JAQ_REGION)
+    
+    if not (sessionid and sig and token and scene and
+            len(sessionid) and len(sig) and len(token) and len(scene) ):
+        return JaqResponse(
+            is_valid=False,
+            error_code='incorrect-captcha-sol'
+        )
 
-def submit(source,
+    request = AfsCheckRequest.AfsCheckRequest()
+    
+    #TODO platform
+    # 必填参数：请求来源： 1：Android端； 2：iOS端； 3：PC端及其他
+    request.set_Platform(3)
+    #必填参数：从前端获取，不可更改
+    request.set_Session(sessionid)
+    #必填参数：从前端获取，不可更改
+    request.set_Sig(sig)
+    #必填参数：从前端获取，不可更改
+    request.set_Token(token)
+    #必填参数：从前端获取，不可更改
+    request.set_Scene(scene)
+    
+    httpresp = clt.do_action_with_exception(request)
+
+    #{"Data":{"FnalDecision":0,"FinalScore":800,"EventId":"b24f8de6-da94-4cfa-82c6-d0239b738463","FinalDesc":"HighValue"},
+    #"ErrorMsg":"success","ErrorCode":0}
+    
+    try:
+        jsonresp = json.loads(httpresp.decode('utf-8'))
+        data = jsonresp['Data']
+        error_code = int(jsonresp['ErrorCode'])
+        error_msg = jsonresp['ErrorMsg']
+    except:
+        data = {}
+        error_code = -1
+        error_msg = 'Error message'
+
+    return JaqResponse(is_valid=(error_code == 0), error_code=error_code, data=data)
+
+
+def prevention(source,
            scene,
            token,
            access_key,
@@ -94,9 +141,6 @@ def submit(source,
     remoteip -- the user's ip address
     """
 
-    print("region_provider", access_key, access_secret, API_JAQ_REGION, API_JAQ_SERVER)
-    region_provider.modify_point('Jaq', API_JAQ_REGION, API_JAQ_SERVER)
-
     clt = AcsClient(access_key, access_secret, API_JAQ_REGION)
 
     if not (scene and token and
@@ -106,26 +150,27 @@ def submit(source,
             error_code='incorrect-captcha-sol'
         )
 
-    print(scene, API_JAQ_REGION, API_JAQ_SERVER)
+    # if request.get_location_service_code() is not None:
+    #     endpoint = self._location_service.find_product_domain(
+    #         self.get_region_id(), request.get_location_service_code())
+
     if scene.startswith('login'):
         request = LoginPreventionRequest.LoginPreventionRequest()
     else:
         request = OtherPreventionRequest.OtherPreventionRequest()
+    #request.set_location_service_code(API_JAQ_SERVER)
+    #request.set_region_id(API_JAQ_REGION)
 
     # 必填参数
-    print (data)
     request.set_PhoneNumber(getattr(data, 'phone', None)) #TODO
     #request.set_Email("")
     #request.set_UserId("")
     #request.set_IdType(1)
 
     request.set_Ip(remoteip)
-
     request.set_ProtocolVersion(API_JAQ_VERSION)
-
     # 必填参数：登录来源。1：PC网页；2：移动网页；3：APP;4:其它
     request.set_Source(source)
-
     # 对应前端页面的afs_token，source来源为1&2&4时，必填;
     request.set_JsToken(token)
 
@@ -152,7 +197,6 @@ def submit(source,
     # request.set_PasswordCorrect(1)
 
     httpresp = clt.do_action_with_exception(request)
-    print(httpresp)
 
     #{"Data":{"FnalDecision":0,"FinalScore":800,"EventId":"b24f8de6-da94-4cfa-82c6-d0239b738463","FinalDesc":"HighValue"},
     #"ErrorMsg":"success","ErrorCode":0}

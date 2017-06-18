@@ -6,6 +6,11 @@ Pending
 
 #. New release notes go here
 
+1.4.0 (2017-06-18)
+------------------
+
+#. The first version, ignite from google recaptcha.
+
 1.3.0 (2017-04-10)
 ------------------
 

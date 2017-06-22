@@ -1,4 +1,4 @@
-import socket
+import socket, logging
 from django import forms
 from django.conf import settings
 from django.utils.translation import ugettext_lazy as _
@@ -11,6 +11,8 @@ from aliyun_jaq.constants import TEST_ACCESS_KEY, TEST_ACCESS_SECRET
 
 from .fields import JaqPreventionField, JaqCaptchaField
 from .utils import get_cache
+
+logger = logging.getLogger('jaq')
 
 class JaqMixin(object):
     error_messages = {
@@ -35,6 +37,8 @@ class CaptchaFormMixin(JaqMixin, forms.Form):
 
     def clean_captcha(self):
         cleaned_data = self.cleaned_data['captcha']
+        
+        logger.info('clean_captcha: %s', cleaned_data)
         #[None, 
         #'0152JIZgtMjy7iQLwB8JakWbAKppYteeWfo7gTAQxQmAM5e5ybmeC4hgRNyX3lvojNX4sZqifBy4P2Ry5u3EvN2nwESFmQBSI2hWHx6u-fxUrKLqWHP2an1qdzMYpipXgD5BdpnmFvh1A2hKLhicj8OZa8avS4V45v-iLM86kCuE0', 
         #'05a1C7nT4bR5hcbZlAujcdyeMzqY3-uwshPclW-XiktoQeLZPgT3SwQ5f2xCbs5Ru2SVmL1Djs0YXCBHDq5_XDekW4COtC9yt1BCtZv1-ALTFiGp4-RSlo2wwzH2kqN58cdblWU6yCL7ei6vq7ykf6Pqz7LOpIB0V8KMQ4_6464OEbljpHXJzNlw4FYni-a_B6RQuA9P97RjpjHI7s5qZppPuERKVmW6GIxrYwW1IDRWMOcYwgyCM0K4i_gG4aV18ct2Sy40m35HAAgut_HRujz0E9Tc3ftrLHvPFKKbjwaT954vU7RYWakbUzTaCiJKTnOFtoxZDjLKR0WHArk3j-CkYF-RPHU090ku2598klRx8Sbd98x54dLmFkjwtkzbKg8h-fBU6_gVVJ1wNqNNM-qneOVGW5LvPHPIZx8AIEyxA', 
@@ -80,13 +84,18 @@ class CaptchaFormMixin(JaqMixin, forms.Form):
 
 class PreventionFormMixin(JaqMixin, forms.Form):
     prevetion = JaqPreventionField(scene="login") #login_h5
+    username_type = "phone"
+    username_field = "username"
 
     def clean_prevetion(self):
         cleaned_data = list(self.cleaned_data['prevetion'])
         key, scene, token = cleaned_data # @UnusedVariable key
-        phone = self.data['username']
+        
+        logger.info('clean_prevetion: %s', cleaned_data)
 
-        extra_data = {'phone': phone }
+        extra_data = {
+            self.username_type: self.data[self.username_field] 
+        }
 
         try:
             check_captcha = client.prevention(
@@ -120,3 +129,29 @@ class PreventionFormMixin(JaqMixin, forms.Form):
                 self.error_messages['captcha_invalid']
             )
         return cleaned_data
+
+class PreventionCaptchaCombineCleanMixin(forms.Form):
+    scene = 'other'
+    prevetion = JaqPreventionField(scene=scene) #register_h5
+    captcha = JaqCaptchaField(scene=scene, required=False) #register_h5
+    
+    def clean(self):
+        if self._errors:
+            return
+        
+        prevetionData = self.cleaned_data['prevetion']
+        eventid = prevetionData[0]
+        prevetion = get_cache().get(eventid)
+        
+        logger.info('clean PreventionCaptchaCombineCleanMixin: %s', prevetionData)
+
+        if prevetion == None:
+            raise forms.ValidationError("Prevetion is required")
+        
+        if prevetion['FnalDecision'] != 0:
+            captchaData = self.cleaned_data['captcha']
+            eventid = captchaData[0]
+            captcha = get_cache().get(eventid)
+            if captcha == None:
+                raise forms.ValidationError("Captcha is required")
+    

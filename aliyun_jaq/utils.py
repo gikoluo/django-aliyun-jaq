@@ -1,8 +1,21 @@
 import sys
 from django.core.cache import caches
+from django.conf import settings
+from django.core.cache import DEFAULT_CACHE_ALIAS
+
+# `get_cache` function has been deprecated since Django 1.7 in favor of `caches`.
+try:
+    from django.core.cache import caches
+
+    def get_django_cache(backend, **kwargs):
+        return caches[backend]
+except ImportError:
+    from django.core.cache import get_cache as get_django_cache
+    
+JAQ_CACHE = getattr(settings, 'JAQ_CACHE', DEFAULT_CACHE_ALIAS)
 
 def get_cache():
-    return getattr(caches, 'jaq', caches['default'])
+    return get_django_cache(JAQ_CACHE)
     
 def get_remote_ip():
     f = sys._getframe()

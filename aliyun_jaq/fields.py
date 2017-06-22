@@ -2,6 +2,7 @@ from django import forms
 from django.conf import settings
 
 from ._compat import smart_unicode
+
 from .constants import TEST_APP_KEY
 from .widgets import JaqPrevention, JaqCaptcha
 

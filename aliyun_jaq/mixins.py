@@ -33,7 +33,7 @@ class JaqMixin(object):
         return getattr(settings, 'JAQ_USE_SSL', True)
 
 class CaptchaFormMixin(JaqMixin, forms.Form):
-    captcha = JaqCaptchaField(scene="login") #login_h5
+    captcha = JaqCaptchaField(scene="login_h5") #login_h5
 
     def clean_captcha(self):
         cleaned_data = self.cleaned_data['captcha']
@@ -83,7 +83,7 @@ class CaptchaFormMixin(JaqMixin, forms.Form):
         return cleaned_data
 
 class PreventionFormMixin(JaqMixin, forms.Form):
-    prevetion = JaqPreventionField(scene="login") #login_h5
+    prevetion = JaqPreventionField(scene="login_h5") #login_h5
     username_type = "phone"
     username_field = "username"
 
